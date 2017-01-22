@@ -1,0 +1,2 @@
+include orangecontrib/statistic/tutorials/*.ows
+include orangecontrib/statistic/widgets/icons/*
