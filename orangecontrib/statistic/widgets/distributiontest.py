@@ -44,7 +44,7 @@ class KolmogorovSmirnov(Test):
     @classmethod
     def compute(cls, widget):
         np_dist = distribution_to_numpy(widget.distribution)
-        return widget.send('p-value', kstest(widget.column, np_dist).pvalue)
+        return kstest(widget.column, np_dist).pvalue
 
 
 class AndersonDarling(Test):
@@ -55,8 +55,7 @@ class AndersonDarling(Test):
     def compute(cls, widget):
         # FIXME: missing p-value
         return
-        if widget.distribution == Distribution.NORMAL:
-            return widget.send('p-value', anderson(widget.column).pvalue)
+        return anderson(widget.column).pvalue
 
 
 class ShapiroWilk(Test):
@@ -66,7 +65,7 @@ class ShapiroWilk(Test):
     @classmethod
     def compute(cls, widget):
         if widget.distribution == Distribution.NORMAL:
-            return widget.send('p-value', shapiro(widget.column)[1])
+            return shapiro(widget.column)[1]
 
 
 class ChiSquare(Test):
@@ -76,7 +75,7 @@ class ChiSquare(Test):
     @classmethod
     def compute(cls, widget):
         if widget.distribution == Distribution.UNIFORM:
-            return widget.send('p-value', chisquare(widget.column).pvalue[0])
+            return chisquare(widget.column).pvalue[0]
 
 
 class DistributionTest(OWWidget):
@@ -170,7 +169,8 @@ class DistributionTest(OWWidget):
 
     def compute_p_value(self):
         if self.data is not None:
-            self.test.compute(self)
+            p_value = self.test.compute(self)
+            return self.send('p-value', p_value)
 
     @property
     def test(self) -> Test:
