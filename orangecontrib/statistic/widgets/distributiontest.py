@@ -7,19 +7,64 @@ from Orange.widgets.widget import OWWidget, gui
 from scipy.stats import shapiro, chisquare, anderson, kstest
 
 
-class Test(Enum):
-    KOLMOGOROV_SMIRNOV = 'Kolmogorov-Smirnov'
-    ANDERSON_DARLING = 'Anderson-Darling'
-    SHAPIRO_WILK = 'Shapiro-Wilk'
-    CHI_SQUARE = 'Chi-square'
-
-
 class Distribution(Enum):
     """
     Data format: display_name, scipy_name
     """
     NORMAL = ('Normal', 'norm')
     UNIFORM = ('Uniform', None)
+    OWN = ('Own', None)
+
+
+class Test:
+    allowed_distribution = NotImplemented
+    name = NotImplemented
+
+    @classmethod
+    def compute(cls, widget):
+        raise NotImplementedError
+
+
+class KolmogorovSmirnov(Test):
+    name = 'Kolmogorov-Smirnov'
+    allowed_distribution = {Distribution.NORMAL}
+
+    @classmethod
+    def compute(cls, widget):
+        if widget.distribution == Distribution.NORMAL:
+            return widget.send('p-value', kstest(widget.column, 'norm').pvalue)
+
+
+class AndersonDarling(Test):
+    name = 'Anderson-Darling'
+    allowed_distribution = {Distribution.NORMAL}
+
+    @classmethod
+    def compute(cls, widget):
+        # FIXME: missing p-value
+        return
+        if widget.distribution == Distribution.NORMAL:
+            return widget.send('p-value', anderson(widget.column).pvalue)
+
+
+class ShapiroWilk(Test):
+    name = 'Shapiro-Wilk'
+    allowed_distribution = {Distribution.NORMAL}
+
+    @classmethod
+    def compute(cls, widget):
+        if widget.distribution == Distribution.NORMAL:
+            return widget.send('p-value', shapiro(widget.column)[1])
+
+
+class ChiSquare(Test):
+    name = 'Chi-square'
+    allowed_distribution = {Distribution.NORMAL}
+
+    @classmethod
+    def compute(cls, widget):
+        if widget.distribution == Distribution.UNIFORM:
+            return widget.send('p-value', chisquare(widget.column).pvalue[0])
 
 
 class DistributionTest(OWWidget):
@@ -33,36 +78,34 @@ class DistributionTest(OWWidget):
     outputs = [('p-value', float)]
 
     available_tests = (
-        Test.KOLMOGOROV_SMIRNOV,
-        Test.ANDERSON_DARLING,
-        Test.SHAPIRO_WILK,
-        Test.CHI_SQUARE,
+        KolmogorovSmirnov,
+        AndersonDarling,
+        ShapiroWilk,
+        ChiSquare,
     )
-    chosen_test = 0
     available_distributions = (
         Distribution.NORMAL,
         Distribution.UNIFORM,
+        Distribution.OWN,
     )
-    chosen_distribution = 0
-    chosen_column = 0
+    test_idx = 0
+    distribution_idx = 0
+    column_idx = 0
+    own_distribution_idx = -1
 
     def __init__(self):
         super().__init__()
 
         box = gui.vBox(self.controlArea, 'Tests')
         gui.radioButtonsInBox(
-            box,
-            self,
-            'chosen_test',
-            btnLabels=[test.value for test in self.available_tests],
+            box, self, 'test_idx',
+            btnLabels=[test.name for test in self.available_tests],
             callback=self.test_changed,
         )
 
         box = gui.vBox(self.controlArea, 'Distributions')
         gui.radioButtonsInBox(
-            box,
-            self,
-            'chosen_distribution',
+            box, self, 'distribution_idx',
             btnLabels=[distribution.value[0]
                        for distribution
                        in self.available_distributions],
@@ -70,12 +113,25 @@ class DistributionTest(OWWidget):
         )
 
         self.column_chose = gui.comboBox(
-            self.controlArea, self, 'chosen_column', box='Selected column',
+            self.controlArea, self, 'column_idx',
+            box='Selected column',
             items=[],
-            orientation=Qt.Horizontal, callback=self.column_changed)
+            orientation=Qt.Horizontal,
+            callback=self.column_changed,
+        )
         self.available_columns = itemmodels.VariableListModel(parent=self)
         self.column_chose.setModel(self.available_columns)
-        self.data = [1, 2, 3]
+
+        self.own_distribution_choose = gui.comboBox(
+            self.controlArea, self, 'own_distribution_idx',
+            box='Own distribution',
+            items=[],
+            orientation=Qt.Horizontal,
+            callback=self.column_changed,
+            disabled=True
+        )
+        self.own_distribution_choose.setModel(self.available_columns)
+        self.data = None
 
     def set_data(self, data):
         if data is not None:
@@ -86,49 +142,31 @@ class DistributionTest(OWWidget):
         return self.compute_p_value()
 
     def distribution_changed(self):
+        if self.distribution == Distribution.OWN:
+            self.own_distribution_choose.setDisabled(False)
+        else:
+            self.own_distribution_choose.setDisabled(True)
         return self.compute_p_value()
 
     def column_changed(self):
         return self.compute_p_value()
 
     def compute_p_value(self):
-        if self.data is None:
-            return
-        if self.test == Test.KOLMOGOROV_SMIRNOV:
-            return self.kolmogorov_smirnov()
-        elif self.test == Test.ANDERSON_DARLING:
-            return self.anderson_darling()
-        elif self.test == Test.SHAPIRO_WILK:
-            return self.shapiro_wilk()
-        elif self.test == Test.CHI_SQUARE:
-            return self.chi_square()
+        if self.data is not None:
+            self.test.compute(self)
 
     @property
     def test(self):
-        return self.available_tests[self.chosen_test]
+        return self.available_tests[self.test_idx]
 
     @property
     def distribution(self):
-        return self.available_distributions[self.chosen_distribution]
+        return self.available_distributions[self.distribution_idx]
 
     @property
     def column(self):
-        return self.data[:, self.chosen_column].X
+        return self.data[:, self.column_idx].X
 
-    def kolmogorov_smirnov(self):
-        if self.distribution == Distribution.NORMAL:
-            return self.send('p-value', kstest(self.column, 'norm').pvalue)
-
-    def anderson_darling(self):
-        # FIXME: missing p-value
-        return
-        if self.distribution == Distribution.NORMAL:
-            return self.send('p-value', anderson(self.column).pvalue)
-
-    def shapiro_wilk(self):
-        if self.distribution == Distribution.NORMAL:
-            return self.send('p-value', shapiro(self.column)[1])
-
-    def chi_square(self):
-        if self.distribution == Distribution.UNIFORM:
-            return self.send('p-value', chisquare(self.column).pvalue)
+    @property
+    def own_distribution(self):
+        return self.data[:, self.own_distribution_idx].X
