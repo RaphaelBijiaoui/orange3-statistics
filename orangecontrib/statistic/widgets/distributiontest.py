@@ -10,7 +10,18 @@ from scipy.stats import shapiro, chisquare, anderson, kstest
 class Distribution(Enum):
     NORMAL = 'Normal'
     UNIFORM = 'Uniform'
+    EXPONENTIAL = 'Exponential'
+    LOGISTIC = 'Logistic'
     OWN = 'Own'
+
+
+def distribution_to_numpy(distribution: Distribution) -> str:
+    if distribution == Distribution.NORMAL:
+        return 'norm'
+    elif distribution == Distribution.EXPONENTIAL:
+        return 'expon'
+    elif distribution == Distribution.LOGISTIC:
+        return 'logistic'
 
 
 class Test:
@@ -24,12 +35,16 @@ class Test:
 
 class KolmogorovSmirnov(Test):
     name = 'Kolmogorov-Smirnov'
-    allowed_distribution = {Distribution.NORMAL}
+    allowed_distribution = {
+        Distribution.NORMAL,
+        Distribution.EXPONENTIAL,
+        Distribution.LOGISTIC,
+    }
 
     @classmethod
     def compute(cls, widget):
-        if widget.distribution == Distribution.NORMAL:
-            return widget.send('p-value', kstest(widget.column, 'norm').pvalue)
+        np_dist = distribution_to_numpy(widget.distribution)
+        return widget.send('p-value', kstest(widget.column, np_dist).pvalue)
 
 
 class AndersonDarling(Test):
@@ -80,15 +95,11 @@ class DistributionTest(OWWidget):
         ShapiroWilk,
         ChiSquare,
     )
-    available_distributions = (
-        Distribution.NORMAL,
-        Distribution.UNIFORM,
-        Distribution.OWN,
-    )
+    available_distributions = [d for d in Distribution]
     test_idx = 0
     distribution_idx = 0
     column_idx = 0
-    own_distribution_idx = -1
+    own_distribution_idx = 0
 
     def __init__(self):
         super().__init__()
