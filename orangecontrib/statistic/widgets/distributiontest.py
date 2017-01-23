@@ -8,12 +8,9 @@ from scipy.stats import shapiro, chisquare, anderson, kstest
 
 
 class Distribution(Enum):
-    """
-    Data format: display_name, scipy_name
-    """
-    NORMAL = ('Normal', 'norm')
-    UNIFORM = ('Uniform', None)
-    OWN = ('Own', None)
+    NORMAL = 'Normal'
+    UNIFORM = 'Uniform'
+    OWN = 'Own'
 
 
 class Test:
@@ -59,7 +56,7 @@ class ShapiroWilk(Test):
 
 class ChiSquare(Test):
     name = 'Chi-square'
-    allowed_distribution = {Distribution.NORMAL}
+    allowed_distribution = {Distribution.UNIFORM}
 
     @classmethod
     def compute(cls, widget):
@@ -104,9 +101,9 @@ class DistributionTest(OWWidget):
         )
 
         box = gui.vBox(self.controlArea, 'Distributions')
-        gui.radioButtonsInBox(
+        self.distribution_choose = gui.radioButtonsInBox(
             box, self, 'distribution_idx',
-            btnLabels=[distribution.value[0]
+            btnLabels=[distribution.value
                        for distribution
                        in self.available_distributions],
             callback=self.distribution_changed,
@@ -132,6 +129,7 @@ class DistributionTest(OWWidget):
         )
         self.own_distribution_choose.setModel(self.available_columns)
         self.data = None
+        self.test_changed()
 
     def set_data(self, data):
         if data is not None:
@@ -139,6 +137,14 @@ class DistributionTest(OWWidget):
             self.available_columns[:] = data.domain
 
     def test_changed(self):
+        for idx, button in enumerate(self.distribution_choose.buttons):
+            if Distribution(button.text()) in self.test.allowed_distribution:
+                button.setDisabled(False)
+                if self.distribution not in self.test.allowed_distribution:
+                    button.toggle()
+                    self.distribution_idx = idx
+            else:
+                button.setDisabled(True)
         return self.compute_p_value()
 
     def distribution_changed(self):
@@ -156,11 +162,11 @@ class DistributionTest(OWWidget):
             self.test.compute(self)
 
     @property
-    def test(self):
+    def test(self) -> Test:
         return self.available_tests[self.test_idx]
 
     @property
-    def distribution(self):
+    def distribution(self) -> Distribution:
         return self.available_distributions[self.distribution_idx]
 
     @property
