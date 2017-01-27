@@ -140,14 +140,16 @@ class DistributionTest(OWWidget):
 
         self.own_distribution_choose.setModel(self.available_columns)
         self.data = None
-        self.infolabel = gui.widgetLabel(
-            self, "p-value: ")
+        self.infolabel = gui.widgetLabel(self, '\np-value: ...')
         self.test_changed()
 
-    def set_data(self, data):
+    def update_data(self, data):
         if data is not None:
             self.data = data
             self.available_columns[:] = data.domain
+
+    def set_data(self, data):
+        return self.update_data(data)
 
     def test_changed(self):
         for idx, button in enumerate(self.distribution_choose.buttons):
@@ -173,12 +175,11 @@ class DistributionTest(OWWidget):
     def compute_p_value(self):
         if self.data is not None:
             p_value = self.test.compute(self)
-            if isinstance(p_value, float):
-                self.infolabel.setText("\n".join(["p-value:"+str(round(p_value, 3))]))
-            else:
-
+            if p_value:
                 self.infolabel.setText(
-                    "\n".join(["p-value:" + str(p_value)]))
+                    '\np-value: {}'.format(round(p_value, 3)))
+            else:
+                self.infolabel.setText('\np-value: ...')
             return self.send('p-value', p_value)
 
     @property
