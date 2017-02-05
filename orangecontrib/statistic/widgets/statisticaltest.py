@@ -7,6 +7,7 @@ from AnyQt.QtWidgets import QHBoxLayout, QListView
 from Orange.widgets.utils import itemmodels
 from Orange.widgets.widget import OWWidget, gui
 from scipy.stats import ttest_1samp, ttest_ind, fisher_exact, f_oneway
+from statsmodels.stats.weightstats import ztest
 
 
 class StatisticalTestWidget(OWWidget):
@@ -84,7 +85,12 @@ class StatisticalTestWidget(OWWidget):
 
     def update_column_selection(self, *args):
         columns_index = self.selected_columns
-        if len(columns_index) == 1:
+        self.active_tests = []
+        self.tests[:] = []
+        if (not self.selected_data_is_continuous and
+                not self.selected_data_is_discrete):
+            return
+        elif len(columns_index) == 1:
             self.enable_test_with_one_sample()
         elif len(columns_index) == 2:
             self.enable_tests_with_two_samples()
@@ -93,23 +99,33 @@ class StatisticalTestWidget(OWWidget):
 
     def enable_test_with_one_sample(self):
         self.active_tests = [test for test in self.available_tests if
-                             test.has_one_sample]
+                             test.can_be_used_with_one_sample(self)]
         self.tests[:] = [test.name for test in self.active_tests]
 
     def enable_tests_with_two_samples(self):
         self.active_tests = [test for test in self.available_tests if
-                             test.has_two_sample]
+                             test.can_be_used_with_two_sample(self)]
         self.tests[:] = [test.name for test in self.active_tests]
 
     def enable_tests_with_many_samples(self):
         self.active_tests = [test for test in self.available_tests if
-                             test.has_many_sample]
+                             test.can_be_used_with_many_sample(self)]
         self.tests[:] = [test.name for test in self.active_tests]
 
     @property
     def selected_columns(self):
         rows = self.varview.selectionModel().selectedRows()
         return [index.row() for index in rows]
+
+    @property
+    def selected_data_is_continuous(self):
+        return all([self.available_columns[i].is_continuous for i in
+                    self.selected_columns])
+
+    @property
+    def selected_data_is_discrete(self):
+        return all([not self.available_columns[i].is_continuous for i in
+                    self.selected_columns])
 
     @property
     def selected_test(self):
@@ -208,6 +224,8 @@ class StatisticalTest:
     has_one_sample = False
     has_two_sample = False
     has_many_sample = False
+    use_continuous_data = False
+    use_discrete_data = False
 
     @abstractmethod
     def one_sample_test(self, sample) -> float:
@@ -221,12 +239,31 @@ class StatisticalTest:
     def many_sample_test(self, *samples) -> float:
         raise NotImplementedError
 
+    def can_be_used_with_one_sample(self, widget):
+        return self.has_one_sample and self.can_be_used_in(widget)
+
+    def can_be_used_with_two_sample(self, widget):
+        return self.has_two_sample and self.can_be_used_in(widget)
+
+    def can_be_used_with_many_sample(self, widget) -> bool:
+        return self.has_many_sample and self.can_be_used_in(widget)
+
+    def can_be_used_in(self, widget) -> bool:
+        if widget.selected_data_is_continuous and self.use_continuous_data:
+            return True
+        elif widget.selected_data_is_discrete and self.use_discrete_data:
+            return True
+        else:
+            return False
+
 
 class TTest(StatisticalTest):
     name = 'T-Test'
 
     has_one_sample = True
     has_two_sample = True
+
+    use_continuous_data = True
 
     def __init__(self):
         self.excepted_value = 0
@@ -244,6 +281,8 @@ class ZTest(StatisticalTest):
     has_one_sample = True
     has_two_sample = True
 
+    use_continuous_data = True
+
     def one_sample_test(self, sample) -> float:
         return ztest(sample)[1][0]
 
@@ -253,7 +292,10 @@ class ZTest(StatisticalTest):
 
 class FisherTest(StatisticalTest):
     name = 'Fisher Test'
+
     has_two_sample = True
+
+    use_discrete_data = True
 
     def two_sample_test(self, sample_1, sample_2) -> float:
         values_1 = set(value[0] for value in sample_1)
@@ -278,6 +320,8 @@ class Anova(StatisticalTest):
     name = 'Anova (one way)'
 
     has_many_sample = True
+
+    use_continuous_data = True
 
     def many_sample_test(self, *samples) -> float:
         return f_oneway(*samples)[1][0]
