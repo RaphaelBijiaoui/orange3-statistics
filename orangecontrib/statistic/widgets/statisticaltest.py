@@ -158,6 +158,8 @@ class StatisticalTestWidget(OWWidget):
             test = self.active_tests[self.selected_test]
         except IndexError:
             return
+        except AttributeError:
+            return
         columns_indexes = self.selected_columns
         number_of_columns = len(columns_indexes)
         if number_of_columns == 0:
