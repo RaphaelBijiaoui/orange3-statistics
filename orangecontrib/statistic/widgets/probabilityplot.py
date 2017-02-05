@@ -4,8 +4,6 @@ from itertools import chain
 
 import Orange
 import Orange.data
-import Orange.data
-import Orange.data
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy.stats as stats
@@ -41,7 +39,7 @@ class ProbabilityPlot(OWWidget):
         self.attrs = VariableListModel()
         self.all_attrs = VariableListModel()
 
-        view = gui.listView(
+        gui.listView(
             self.controlArea, self, "attribute", box="First variable",
             model=self.attrs, callback=self.attr_changed)
         self.view2 = gui.listView(
@@ -71,9 +69,9 @@ class ProbabilityPlot(OWWidget):
             domain = dataset.domain
 
             # all atributes from dataset
-            self.all_attrs[:] = list(domain) + \
-                                [meta for meta in domain.metas
-                                 if meta.is_continuous or meta.is_discrete]
+            self.all_attrs[:] = list(domain) + [
+                meta for meta in domain.metas
+                if meta.is_continuous or meta.is_discrete]
             # atributes in list
             self.attrs[:] = [a for a in chain(domain.variables, domain.metas)
                              if a.is_continuous]
@@ -86,10 +84,10 @@ class ProbabilityPlot(OWWidget):
                 self.attr_changed()
 
     def plot_changed(self):
-        '''
+        """
         Selection of type of plot.
         :return: plot function
-        '''
+        """
         self.clear_plot()
 
         if self.distribution_idx == 1:
@@ -106,20 +104,18 @@ class ProbabilityPlot(OWWidget):
             self.prob_plot()
 
     def prob_plot(self):
-        '''
-
+        """
         :return:  Probability plot
-        '''
+        """
         self.ax = self.figure.add_subplot(111)
         self.ax.hold(True)
         stats.probplot(self.column_data, dist="norm", plot=plt)
         self.canvas.draw()
 
     def qq_plot_2samples(self):
-        '''
-
+        """
         :return: Q-Q plot between two samples
-        '''
+        """
         self.ax = self.figure.add_subplot(111)
         self.ax.hold(True)
         pp_x = sm.ProbPlot(self.column_data)
@@ -128,10 +124,9 @@ class ProbabilityPlot(OWWidget):
         self.canvas.draw()
 
     def pp_plot(self):
-        '''
-
+        """
         :return: P-P plot
-        '''
+        """
         self.ax = self.figure.add_subplot(111)
         self.ax.hold(True)
         probplot = sm.ProbPlot(self.column_data)
@@ -139,30 +134,29 @@ class ProbabilityPlot(OWWidget):
         self.canvas.draw()
 
     def qq_plot(self):
-        '''
-
+        """
         :return: Q-Q plot
-        '''
+        """
         self.ax = self.figure.add_subplot(111)
         self.ax.hold(True)
         sm.qqplot(self.column_data, line="q", ax=self.ax)
         self.canvas.draw()
 
     def clear_plot(self):
-        '''
+        """
         After all change of type of plot or one of atributes
         :return: clear plot - blank
-        '''
+        """
         self.ax = self.figure.add_subplot(111)
         self.ax.hold(False)
         self.ax.plot([], '*-')
         self.canvas.draw()
 
     def attr_changed(self):
-        '''
+        """
         Select index of column.
         :return: change plot
-        '''
+        """
         self.clear_plot()
         for i in enumerate(self.all_attrs):
             if self.attribute == i[1]:
@@ -172,10 +166,10 @@ class ProbabilityPlot(OWWidget):
         self.plot_changed()
 
     def var_changed(self):
-        '''
+        """
         Select index of secound column to 2 samples to qq plot.
         :return: change plot
-        '''
+        """
         self.clear_plot()
         for i in enumerate(self.all_attrs):
             if self.group_var == i[1]:
@@ -185,10 +179,10 @@ class ProbabilityPlot(OWWidget):
         self.plot_changed()
 
     def column(self):
-        '''
+        """
         Chose data and set 0.0 in missing data
         :return: data of choosen column
-        '''
+        """
         l = self.dataset[:, self.column_idx]
         result = []
         for sublist in l:
@@ -200,10 +194,10 @@ class ProbabilityPlot(OWWidget):
         return np.array(result)
 
     def var(self):
-        '''
+        """
         Chose data and set 0.0 in missing data
         :return: data of choosen second column
-        '''
+        """
         l = self.dataset[:, self.var_idx]
         result = []
         for sublist in l:
