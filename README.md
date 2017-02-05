@@ -32,5 +32,3 @@ use
     python -m Orange.canvas
 
 The new widget appears in the toolbox bar under the section Statistic.
-
-![screenshot](https://github.com/biolab/orange3-statistic-addon/blob/master/screenshot.png)
