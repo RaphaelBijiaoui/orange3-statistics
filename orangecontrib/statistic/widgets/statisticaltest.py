@@ -1,7 +1,6 @@
 from abc import abstractmethod
 
 import Orange.data
-from statsmodels.stats.weightstats import ztest
 from AnyQt.QtCore import Qt
 from AnyQt.QtWidgets import QHBoxLayout, QListView
 from Orange.widgets.utils import itemmodels
@@ -11,8 +10,12 @@ from statsmodels.stats.weightstats import ztest
 
 
 class StatisticalTestWidget(OWWidget):
+    """
+    Perform statistical tests
+    """
     name = 'Statistical test'
-    description = 'Do statistical tests and returns p-value'
+    description = 'Do statistical tests and returns p-value.\n' \
+                  'Many samples should be in same table as columns.'
     icon = 'icons/test_widget.svg'
     want_main_area = False
     inputs = [('Data', Orange.data.Table, 'set_data')]
@@ -43,7 +46,6 @@ class StatisticalTestWidget(OWWidget):
         vlayout.addWidget(self.varview)
 
         # Test selection
-
         self.tests = itemmodels.VariableListModel(parent=self)
         self.testview = QListView(selectionMode=QListView.SingleSelection)
         self.testview.setModel(self.tests)
@@ -52,6 +54,7 @@ class StatisticalTestWidget(OWWidget):
         )
         vlayout.addWidget(self.testview)
 
+        # Correction selection
         self.corrections = itemmodels.VariableListModel(parent=self)
         self.corrections[:] = \
             [str(None), BonferroniCorrection().name, SidakCorrection().name]
@@ -64,18 +67,28 @@ class StatisticalTestWidget(OWWidget):
 
         self.n_of_tests = 1
 
-        self.n_of_tests_input = gui.lineEdit(self.controlArea, self,
-            'n_of_tests', label='<p align="right">Number of tests</p>',
-            callbackOnType=True, controlWidth=150, orientation=Qt.Horizontal,
-            callback=self.number_of_tests_changed)
+        self.n_of_tests_input = gui.lineEdit(
+            self.controlArea, self,
+            'n_of_tests',
+            label='<p align="right">Number of tests</p>',
+            callbackOnType=True,
+            controlWidth=150,
+            orientation=Qt.Horizontal,
+            callback=self.number_of_tests_changed,
+        )
 
         self.chosen_correction = None
 
         pval_box = gui.vBox(self.controlArea)
-        self.pval_infolabel = gui.widgetLabel(pval_box,
-            '<p align="left"><b>p-value: </b></p>')
+        self.pval_infolabel = gui.widgetLabel(
+            pval_box,
+            '<p align="left"><b>p-value: </b></p>',
+        )
 
-    def show_p_value(self, p_value):
+    def show_p_value(self, p_value: float):
+        """
+        Draw p-value in widget if only is numeric.
+        """
         if isinstance(p_value, int) or isinstance(p_value, float):
             p_val_str = str(p_value)
         else:
@@ -84,6 +97,10 @@ class StatisticalTestWidget(OWWidget):
             '<p align="left"><b>p-value: {}</b></p>'.format(p_val_str))
 
     def update_column_selection(self, *args):
+        """
+        Method called when selection of samples changed.
+        Enables matching tests for selected samples.
+        """
         columns_index = self.selected_columns
         self.active_tests = []
         self.tests[:] = []
@@ -98,37 +115,59 @@ class StatisticalTestWidget(OWWidget):
             self.enable_tests_with_many_samples()
 
     def enable_test_with_one_sample(self):
+        """
+        Enable tests which can be apply to one sample.
+        """
         self.active_tests = [test for test in self.available_tests if
                              test.can_be_used_with_one_sample(self)]
         self.tests[:] = [test.name for test in self.active_tests]
 
     def enable_tests_with_two_samples(self):
+        """
+        Enable tests which can be apply to two samples.
+        """
         self.active_tests = [test for test in self.available_tests if
                              test.can_be_used_with_two_sample(self)]
         self.tests[:] = [test.name for test in self.active_tests]
 
     def enable_tests_with_many_samples(self):
+        """
+        Enable tests which can be apply to many samples.
+        It should not be called for one or two data samples!
+        """
         self.active_tests = [test for test in self.available_tests if
                              test.can_be_used_with_many_sample(self)]
         self.tests[:] = [test.name for test in self.active_tests]
 
     @property
     def selected_columns(self):
+        """
+        :return: Indexes of actually selected columns.
+        """
         rows = self.varview.selectionModel().selectedRows()
         return [index.row() for index in rows]
 
     @property
     def selected_data_is_continuous(self):
+        """
+        :return: Tell whether all selected samples are continuous.
+        """
         return all([self.available_columns[i].is_continuous for i in
                     self.selected_columns])
 
     @property
     def selected_data_is_discrete(self):
+        """
+        :return: Tell whether all selected samples are discrete.
+        """
         return all([not self.available_columns[i].is_continuous for i in
                     self.selected_columns])
 
     @property
     def selected_test(self):
+        """
+        :return: index of actually selected test.
+        """
         # FIXME: I have no idea why test list selection sometimes disappearing
         try:
             _ = self.testview.selectionModel().selectedRows()[0].row()
@@ -141,17 +180,25 @@ class StatisticalTestWidget(OWWidget):
         return self.update_data(data)
 
     def update_data(self, data):
+        """
+        Method called when input data updated.
+        :param data: input data
+        """
         if data:
             self.data = data
             self.available_columns[:] = data.domain
 
-    def column_changed(self):
-        pass
-
     def test_selected(self):
+        """
+        Method called when test selected.
+        """
         return self.do_test()
 
     def do_test(self):
+        """
+        Main method of widget. Do all test logic.
+        Call it if you want to do test or recalculate it.
+        """
         if not self.data:
             return
         try:
@@ -182,14 +229,20 @@ class StatisticalTestWidget(OWWidget):
         return self.send('p-value', p_value)
 
     def number_of_tests_changed(self):
+        """
+        Method called when number of test in correction changed.
+        """
         try:
             self.n_of_tests = int(self.n_of_tests)
-        except:
+        except TypeError:
             self.n_of_tests = 1
             self.n_of_tests_input = "1"
         self.test_selected()
 
     def set_correction(self):
+        """
+        Method called when correction method changed.
+        """
         new_cor = self.cor_varview.selectionModel().selectedRows()[0].row()
         recalculate = False
         if self.chosen_correction != new_cor:
@@ -200,28 +253,39 @@ class StatisticalTestWidget(OWWidget):
 
 
 class Correction:
+    """
+    Base Correction class, all Corrections should be subclass of this
+    """
     name = ''
 
     @abstractmethod
-    def calculate_correction(self, p_value, n_of_tests) -> float:
+    def calculate_correction(self, p_value: float, n_of_tests: int) -> float:
+        """
+        :param p_value: p-value from statistical test
+        :param n_of_tests: number of tests
+        :return:
+        """
         raise NotImplementedError
 
 
 class BonferroniCorrection(Correction):
     name = 'Bonferroni'
 
-    def calculate_correction(self, p_value, n_of_tests) -> float:
-        return p_value*n_of_tests
+    def calculate_correction(self, p_value: float, n_of_tests: int) -> float:
+        return p_value * n_of_tests
 
 
 class SidakCorrection(Correction):
     name = 'Sidak'
 
-    def calculate_correction(self, p_value, n_of_tests) -> float:
-        return 1 - (1 - p_value)**(n_of_tests)
+    def calculate_correction(self, p_value: float, n_of_tests: int) -> float:
+        return 1 - (1 - p_value) ** n_of_tests
 
 
 class StatisticalTest:
+    """
+    Base, abstract class for all statistical tests.
+    """
     name = ''
     has_one_sample = False
     has_two_sample = False
@@ -231,26 +295,55 @@ class StatisticalTest:
 
     @abstractmethod
     def one_sample_test(self, sample) -> float:
+        """
+        Do test using one sample
+        :param sample: data to test
+        :return: p-value
+        """
         raise NotImplementedError
 
     @abstractmethod
     def two_sample_test(self, sample_1, sample_2) -> float:
+        """
+        Do test using two samples
+        :param sample_1: first sample of data
+        :param sample_2: second sample of data
+        :return: p-value
+        """
         raise NotImplementedError
 
     @abstractmethod
     def many_sample_test(self, *samples) -> float:
+        """
+        :param samples: As many data samples as you want.
+        :return: p-value
+        """
         raise NotImplementedError
 
     def can_be_used_with_one_sample(self, widget):
+        """
+        Tells if this test can be done using actually selected data in widget
+        """
         return self.has_one_sample and self.can_be_used_in(widget)
 
-    def can_be_used_with_two_sample(self, widget):
+    def can_be_used_with_two_sample(self, widget: StatisticalTestWidget):
+        """
+        Tells if this test can be done using actually selected data in widget
+        """
         return self.has_two_sample and self.can_be_used_in(widget)
 
-    def can_be_used_with_many_sample(self, widget) -> bool:
+    def can_be_used_with_many_sample(
+            self, widget: StatisticalTestWidget) -> bool:
+        """
+        Tells if this test can be done using actually selected data in widget
+        """
         return self.has_many_sample and self.can_be_used_in(widget)
 
     def can_be_used_in(self, widget) -> bool:
+        """
+        Tells if this test can be done using actually selected data in widget.
+        Check only if data is continuous or not.
+        """
         if widget.selected_data_is_continuous and self.use_continuous_data:
             return True
         elif widget.selected_data_is_discrete and self.use_discrete_data:
