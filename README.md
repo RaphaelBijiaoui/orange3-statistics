@@ -17,12 +17,6 @@ Python's site-packages directory), run
 
     pip install -e .
 
-Documentation / widget help can be built by running
-
-    make html htmlhelp
-
-from the doc directory.
-
 Usage
 -----
 
