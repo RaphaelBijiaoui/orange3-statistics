@@ -47,6 +47,19 @@ class StatisticalTestWidget(OWWidget):
         )
         vlayout.addWidget(self.testview)
 
+        pval_box = gui.vBox(self.controlArea)
+        self.pval_infolabel = gui.widgetLabel(pval_box, "p-value:")
+
+
+    def show_p_value(self, p_value):
+        print(p_value)
+        if isinstance(p_value, int) or isinstance(p_value, float):
+            p_val_str = str(round(p_value, 5))
+        else:
+            p_val_str = '~ ? ~'
+        self.pval_infolabel.setText(
+            "\n".join(["p-value: " + p_val_str]))
+
     def update_column_selection(self, *args):
         columns_index = self.selected_columns
         if len(columns_index) == 1:
@@ -122,6 +135,7 @@ class StatisticalTestWidget(OWWidget):
             p_value = test.many_sample_test(
                 *[self.data[:, column_index].X for column_index in
                   columns_indexes])
+        self.show_p_value(p_value)
         return self.send('p-value', p_value)
 
 
@@ -202,4 +216,4 @@ class Anova(StatisticalTest):
     has_many_sample = True
 
     def many_sample_test(self, *samples) -> float:
-        return f_oneway(*samples)[1]
+        return f_oneway(*samples)[1][0]
