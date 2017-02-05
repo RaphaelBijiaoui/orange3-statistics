@@ -51,9 +51,8 @@ class StatisticalTestWidget(OWWidget):
         self.pval_infolabel = gui.widgetLabel(pval_box, "p-value:")
 
     def show_p_value(self, p_value):
-        print(p_value)
         if isinstance(p_value, int) or isinstance(p_value, float):
-            p_val_str = str(round(p_value, 5))
+            p_val_str = str(p_value)
         else:
             p_val_str = '~ ? ~'
         self.pval_infolabel.setText(

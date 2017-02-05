@@ -177,7 +177,7 @@ class DistributionTest(OWWidget):
             p_value = self.test.compute(self)
             if p_value:
                 self.infolabel.setText(
-                    '\np-value: {}'.format(round(p_value, 3)))
+                    '\np-value: {}'.format(p_value))
             else:
                 self.infolabel.setText('\np-value: ...')
             return self.send('p-value', p_value)
