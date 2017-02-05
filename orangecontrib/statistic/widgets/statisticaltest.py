@@ -1,12 +1,11 @@
 from abc import abstractmethod
 
 import Orange.data
-import Orange.data
 from statsmodels.stats.weightstats import ztest
-from AnyQt.QtWidgets import QHBoxLayout, QListView, QFormLayout, QSizePolicy
+from AnyQt.QtWidgets import QHBoxLayout, QListView
 from Orange.widgets.utils import itemmodels
 from Orange.widgets.widget import OWWidget, gui
-from scipy.stats import ttest_1samp, ttest_ind
+from scipy.stats import ttest_1samp, ttest_ind, fisher_exact, f_oneway
 
 
 class StatisticalTestWidget(OWWidget):
@@ -20,7 +19,7 @@ class StatisticalTestWidget(OWWidget):
     def __init__(self):
         super().__init__()
         self.data = None
-        self.available_tests = [TTest(), ZTest(), ]
+        self.available_tests = [TTest(), ZTest(), FisherTest(), Anova()]
         self.active_tests = []
 
         self.available_columns = itemmodels.VariableListModel(parent=self)
@@ -155,10 +154,10 @@ class TTest(StatisticalTest):
         self.excepted_value = 0
 
     def one_sample_test(self, sample) -> float:
-        return ttest_1samp(sample, self.excepted_value).pvalue
+        return ttest_1samp(sample, self.excepted_value).pvalue[0]
 
     def two_sample_test(self, sample_1, sample_2) -> float:
-        return ttest_ind(sample_1, sample_2).pvalue
+        return ttest_ind(sample_1, sample_2).pvalue[0]
 
 
 class ZTest(StatisticalTest):
@@ -167,8 +166,40 @@ class ZTest(StatisticalTest):
     has_one_sample = True
     has_two_sample = True
 
-    def one_sample_test(self, sample):
-        return ztest(sample)[1]
+    def one_sample_test(self, sample) -> float:
+        return ztest(sample)[1][0]
 
-    def two_sample_test(self, sample_1, sample_2):
-        return ztest(sample_1, sample_2)[1]
+    def two_sample_test(self, sample_1, sample_2) -> float:
+        return ztest(sample_1, sample_2)[1][0]
+
+
+class FisherTest(StatisticalTest):
+    name = 'Fisher Test'
+    has_two_sample = True
+
+    def two_sample_test(self, sample_1, sample_2) -> float:
+        values_1 = set(value[0] for value in sample_1)
+        values_2 = set(value[0] for value in sample_2)
+        if len(values_1) == 2 and len(values_2) == 2:
+            values = list(values_1)
+            data_1 = {v: 0 for v in values}
+            data_2 = {v: 0 for v in values}
+            for value in sample_1:
+                data_1[value[0]] += 1
+            for value in sample_2:
+                data_2[value[0]] += 1
+            return fisher_exact(
+                [
+                    [data_1[v] for v in values],
+                    [data_2[v] for v in values]
+                ]
+            )[1]
+
+
+class Anova(StatisticalTest):
+    name = 'Anova (one way)'
+
+    has_many_sample = True
+
+    def many_sample_test(self, *samples) -> float:
+        return f_oneway(*samples)[1]
