@@ -409,7 +409,7 @@ class DistributionTest(OWWidget):
             p_value = self.test.compute(self)
             if isinstance(p_value, float):
                 self.infolabel.setText(
-                    "\n".join(["p-value:" + str(round(p_value, 3))]))
+                    '\np-value: {}'.format(p_value))
             else:
 
                 self.infolabel.setText(

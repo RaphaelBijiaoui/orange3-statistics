@@ -32,7 +32,7 @@ DATA_FILES = [
 ]
 
 INSTALL_REQUIRES = [
-    'Orange3',
+    'Orange3', 'statsmodels==0.8.0rc1', 'matplotlib==2.0.0'
 ]
 
 ENTRY_POINTS = {
