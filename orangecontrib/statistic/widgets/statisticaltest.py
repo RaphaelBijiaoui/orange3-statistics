@@ -1,7 +1,6 @@
 from abc import abstractmethod
 
 import Orange.data
-from statsmodels.stats.weightstats import ztest
 from AnyQt.QtCore import Qt
 from AnyQt.QtWidgets import QHBoxLayout, QListView
 from Orange.widgets.utils import itemmodels
@@ -64,16 +63,23 @@ class StatisticalTestWidget(OWWidget):
 
         self.n_of_tests = 1
 
-        self.n_of_tests_input = gui.lineEdit(self.controlArea, self,
-            'n_of_tests', label='<p align="right">Number of tests</p>',
-            callbackOnType=True, controlWidth=150, orientation=Qt.Horizontal,
-            callback=self.number_of_tests_changed)
+        self.n_of_tests_input = gui.lineEdit(
+            self.controlArea, self,
+            'n_of_tests',
+            label='<p align="right">Number of tests</p>',
+            callbackOnType=True,
+            controlWidth=150,
+            orientation=Qt.Horizontal,
+            callback=self.number_of_tests_changed,
+        )
 
         self.chosen_correction = None
 
         pval_box = gui.vBox(self.controlArea)
-        self.pval_infolabel = gui.widgetLabel(pval_box,
-            '<p align="left"><b>p-value: </b></p>')
+        self.pval_infolabel = gui.widgetLabel(
+            pval_box,
+            '<p align="left"><b>p-value: </b></p>',
+        )
 
     def show_p_value(self, p_value):
         if isinstance(p_value, int) or isinstance(p_value, float):
@@ -211,14 +217,14 @@ class BonferroniCorrection(Correction):
     name = 'Bonferroni'
 
     def calculate_correction(self, p_value, n_of_tests) -> float:
-        return p_value*n_of_tests
+        return p_value * n_of_tests
 
 
 class SidakCorrection(Correction):
     name = 'Sidak'
 
     def calculate_correction(self, p_value, n_of_tests) -> float:
-        return 1 - (1 - p_value)**(n_of_tests)
+        return 1 - (1 - p_value) ** (n_of_tests)
 
 
 class StatisticalTest:
