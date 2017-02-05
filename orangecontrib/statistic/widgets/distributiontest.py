@@ -176,7 +176,7 @@ class DistributionBarItem(pg.GraphicsObject):
 class DistributionTest(OWWidget):
     name = 'Distribution Test'
     description = 'Check if data is in given distribution.'
-    icon = 'icons/mywidget.svg'
+    icon = 'icons/disttest.svg'
     want_main_area = True
     buttons_area_orientation = Qt.Vertical
     resizing_enabled = True

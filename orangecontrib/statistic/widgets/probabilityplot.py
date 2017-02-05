@@ -19,7 +19,7 @@ from statsmodels.graphics.gofplots import qqplot_2samples
 
 class ProbabilityPlot(OWWidget):
     name = "Probability Plot"
-    icon = "icons/mywidget.svg"
+    icon = "icons/probplot.svg"
     want_main_area = True
     inputs = [("Data", Orange.data.Table, "set_data")]
     settingsHandler = DomainContextHandler()
