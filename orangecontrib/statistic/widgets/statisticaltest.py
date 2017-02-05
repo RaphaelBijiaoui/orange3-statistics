@@ -2,6 +2,7 @@ from abc import abstractmethod
 
 import Orange.data
 from statsmodels.stats.weightstats import ztest
+from AnyQt.QtCore import Qt
 from AnyQt.QtWidgets import QHBoxLayout, QListView
 from Orange.widgets.utils import itemmodels
 from Orange.widgets.widget import OWWidget, gui
@@ -23,6 +24,9 @@ class StatisticalTestWidget(OWWidget):
         self.active_tests = []
 
         self.available_columns = itemmodels.VariableListModel(parent=self)
+
+        self.available_corrections = [
+            None, BonferroniCorrection(), SidakCorrection()]
 
         vlayout = QHBoxLayout()
         # Data selection
@@ -47,9 +51,28 @@ class StatisticalTestWidget(OWWidget):
         )
         vlayout.addWidget(self.testview)
 
-        pval_box = gui.vBox(self.controlArea)
-        self.pval_infolabel = gui.widgetLabel(pval_box, "p-value:")
+        self.corrections = itemmodels.VariableListModel(parent=self)
+        self.corrections[:] = \
+            [str(None), BonferroniCorrection().name, SidakCorrection().name]
+        self.cor_varview = QListView(selectionMode=QListView.SingleSelection)
+        self.cor_varview.setModel(self.corrections)
+        self.cor_varview.selectionModel().selectionChanged.connect(
+            self.set_correction
+        )
+        vlayout.addWidget(self.cor_varview)
 
+        self.n_of_tests = 1
+
+        self.n_of_tests_input = gui.lineEdit(self.controlArea, self,
+            'n_of_tests', label='<p align="right">Number of tests</p>',
+            callbackOnType=True, controlWidth=150, orientation=Qt.Horizontal,
+            callback=self.number_of_tests_changed)
+
+        self.chosen_correction = None
+
+        pval_box = gui.vBox(self.controlArea)
+        self.pval_infolabel = gui.widgetLabel(pval_box,
+            '<p align="left"><b>p-value: </b></p>')
 
     def show_p_value(self, p_value):
         if isinstance(p_value, int) or isinstance(p_value, float):
@@ -57,7 +80,7 @@ class StatisticalTestWidget(OWWidget):
         else:
             p_val_str = '~ ? ~'
         self.pval_infolabel.setText(
-            "\n".join(["p-value: " + p_val_str]))
+            '<p align="left"><b>p-value: {}</b></p>'.format(p_val_str))
 
     def update_column_selection(self, *args):
         columns_index = self.selected_columns
@@ -134,8 +157,50 @@ class StatisticalTestWidget(OWWidget):
             p_value = test.many_sample_test(
                 *[self.data[:, column_index].X for column_index in
                   columns_indexes])
+        if self.chosen_correction:
+            chosen_ = self.available_corrections[self.chosen_correction]
+            p_value = chosen_.calculate_correction(p_value, self.n_of_tests)
         self.show_p_value(p_value)
         return self.send('p-value', p_value)
+
+    def number_of_tests_changed(self):
+        try:
+            self.n_of_tests = int(self.n_of_tests)
+        except:
+            self.n_of_tests = 1
+            self.n_of_tests_input = "1"
+        self.test_selected()
+
+    def set_correction(self):
+        new_cor = self.cor_varview.selectionModel().selectedRows()[0].row()
+        recalculate = False
+        if self.chosen_correction != new_cor:
+            self.chosen_correction = new_cor
+            recalculate = True
+        if recalculate:
+            self.test_selected()
+
+
+class Correction:
+    name = ''
+
+    @abstractmethod
+    def calculate_correction(self, p_value, n_of_tests) -> float:
+        raise NotImplementedError
+
+
+class BonferroniCorrection(Correction):
+    name = 'Bonferroni'
+
+    def calculate_correction(self, p_value, n_of_tests) -> float:
+        return p_value*n_of_tests
+
+
+class SidakCorrection(Correction):
+    name = 'Sidak'
+
+    def calculate_correction(self, p_value, n_of_tests) -> float:
+        return 1 - (1 - p_value)**(n_of_tests)
 
 
 class StatisticalTest:
