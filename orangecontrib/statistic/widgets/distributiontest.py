@@ -5,15 +5,13 @@ from math import sqrt
 from xml.sax.saxutils import escape
 import Orange
 import Orange.data
-import Orange.data
 import numpy as np
 import pyqtgraph as pg
 import statsmodels.stats.diagnostic as ande
 from AnyQt.QtCore import QRectF
 from AnyQt.QtCore import Qt
 from AnyQt.QtGui import QColor, QBrush, QPainter, QPicture
-from AnyQt.QtGui import (
-    QPen, QPalette, )
+from AnyQt.QtGui import QPen, QPalette
 from AnyQt.QtWidgets import QSizePolicy, QLabel
 from Orange.statistics import distribution, contingency
 from Orange.widgets import gui
@@ -65,11 +63,11 @@ class KolmogorovSmirnov(Test):
 
     @classmethod
     def compute(cls, widget):
-        '''
+        """
         Kolmogorov-Smirnov test for one or two samples from initial data
         :param widget:
         :return: p-value of Kolmogorov-Smirnov test
-        '''
+        """
         np_dist = distribution_to_numpy(widget.distribution)
         if np_dist != 'own':
 
@@ -80,7 +78,6 @@ class KolmogorovSmirnov(Test):
                 own = [a[0] for a in widget.own_distribution]
             except:
                 # FIXME:only for continuos samples
-
                 return 0
             return ks_2samp(columns, own).pvalue
 
@@ -91,11 +88,11 @@ class AndersonDarling(Test):
 
     @classmethod
     def compute(cls, widget):
-        '''
+        """
         Anderson-Darling test for one sample
         :param widget:
         :return: p-value for Anderson-Darling test
-        '''
+        """
         if isinstance(
                 ande.normal_ad(np.array([a[0] for a in widget.column]))[1],
                 float):
@@ -112,11 +109,11 @@ class ShapiroWilk(Test):
 
     @classmethod
     def compute(cls, widget):
-        '''
+        """
         Shapiro-Wilk test for one sample.
         :param widget:
         :return: p-value for Shapiro-Wilk test
-        '''
+        """
         if widget.distribution == Distribution.NORMAL:
             return shapiro(widget.column)[1]
 
@@ -127,19 +124,19 @@ class ChiSquare(Test):
 
     @classmethod
     def compute(cls, widget):
-        '''
+        """
         Chi-square test for one sample
         :param widget:
         :return: p-value of Chi-square test
-        '''
+        """
         if widget.distribution == Distribution.UNIFORM:
             return chisquare(widget.column).pvalue[0]
 
 
 class DistributionBarItem(pg.GraphicsObject):
-    '''
+    """
     Overwrite Class to paint appopriate bars
-    '''
+    """
 
     def __init__(self, geometry, dist, colors):
         super().__init__()
@@ -295,9 +292,9 @@ class DistributionTest(OWWidget):
         self.test_changed()
 
     def update_views(self):
-        '''
-        :return: resize
-        '''
+        """
+        resize
+        """
         self.plot_prob.setGeometry(self.box_scene.sceneBoundingRect())
         self.plot_prob.linkedViewChanged(self.box_scene, self.plot_prob.XAxis)
 
@@ -311,9 +308,10 @@ class DistributionTest(OWWidget):
             self.available_columns[:] = data.domain
             domain = self.data.domain
 
-            self.varmodel[:] = list(domain) + \
-                               [meta for meta in domain.metas
-                                if meta.is_continuous or meta.is_discrete]
+            self.varmodel[:] = list(domain) + [
+                meta for meta in domain.metas
+                if meta.is_continuous or meta.is_discrete
+                ]
             self.groupvarmodel = \
                 ["(None)"] + [var for var in domain if var.is_discrete] + \
                 [meta for meta in domain.metas if meta.is_discrete]
@@ -328,11 +326,11 @@ class DistributionTest(OWWidget):
             self._setup()
 
     def test_changed(self):
-        '''
-        Menagement of buttons, depends from type of distribution test.
+        """
+        Management of buttons, depends from type of distribution test.
         Own samples are hidden.
         :return:
-        '''
+        """
         for idx, button in enumerate(self.distribution_choose.buttons):
             if Distribution(button.text()) in self.test.allowed_distribution:
                 button.show()
@@ -346,10 +344,10 @@ class DistributionTest(OWWidget):
         self.compute_p_value()
 
     def distribution_changed(self):
-        '''
+        """
          Control buttons of allowed distributions - show or hide
         :return: compute p-value
-        '''
+        """
         if self.distribution == Distribution.OWN:
             self.own_distribution_choose.show()
         else:
@@ -367,16 +365,16 @@ class DistributionTest(OWWidget):
         self._legend.hide()
 
     def column_changed(self):
-        '''
+        """
         compute p-value if column is changed
-        '''
+        """
         self._setup()
         self.compute_p_value()
 
     def _setup(self):
-        '''
+        """
         set new plot
-        '''
+        """
         self.box_scene.clear()
         self.plot_prob.clear()
         self._legend.clear()
@@ -405,7 +403,6 @@ class DistributionTest(OWWidget):
 
     def compute_p_value(self):
         """
-
         :return: p-value
         """
         if self.data is not None:
@@ -468,13 +465,10 @@ class DistributionTest(OWWidget):
             weights /= sumw
             colors = cols
             curves = [(X, Y * w) for (X, Y), w in zip(curves, weights)]
-            ncval = len(cvar_values)
 
             curvesline = []  # from histograms to lines
             for (X, Y) in curves:
-                X = X + (X[1] - X[0]) / 2
-                X = X[:-1]
-                X = np.array(X)
+                X += np.array(((X[1] - X[0]) / 2)[:-1])
                 Y = np.array(Y)
                 curvesline.append((X, Y))
 
@@ -492,13 +486,15 @@ class DistributionTest(OWWidget):
                                  brush=QBrush(color), pen=pen)
                     self.box_scene.addItem(item)
                     if t == "line":
-                        item.tooltip = (
-                                           "Normalized density " if self.relative_freq else "Density ") \
-                                       + "\n" + cvar.name + "=" + cval
+                        if self.relative_freq:
+                            density = "Normalized density"
+                        else:
+                            density = "Density"
+                        item.tooltip = "{density}\n{name}={value}".format(
+                            value=cval, name=cvar.name, density=density)
                         self.tooltip_items.append((self.box_scene, item))
 
             if self.show_prob:
-                M_EST = 5  # for M estimate
                 all_X = np.array(
                     np.unique(np.hstack([X for X, _ in curvesline])))
                 inter_X = np.array(
@@ -517,13 +513,14 @@ class DistributionTest(OWWidget):
                         item = pg.PlotCurveItem()
                         pen = QPen(QBrush(color), 3, style=Qt.DotLine)
                         pen.setCosmetic(True)
-                        # prob = (Y+allcorrection/ncval)/(sumprob+allcorrection)
                         prob = Y[legal] / sumprob[legal]
                         item.setData(inter_X[legal], prob, antialias=True,
                                      stepMode=False,
                                      fillLevel=None, brush=None, pen=pen)
                         self.plot_prob.addItem(item)
-                        item.tooltip = "Probability that \n" + cvar.name + "=" + cval
+                        item.tooltip = \
+                            "Probability that \n{name}={value}".format(
+                                name=cvar.name, value=cval)
                         self.tooltip_items.append((self.plot_prob, item))
 
         elif var and var.is_discrete:
@@ -531,7 +528,6 @@ class DistributionTest(OWWidget):
             bottomaxis.setTicks([list(enumerate(var.values))])
 
             cont = np.array(cont)
-            ncval = len(cvar_values)
 
             maxh = 0  # maximal column height
             maxrh = 0  # maximal relative column height
@@ -545,37 +541,40 @@ class DistributionTest(OWWidget):
 
             for i, (value, dist) in enumerate(zip(var.values, cont.T)):
                 dsum = sum(dist)
-                geom = QRectF(i - 0.333, 0, 0.666, maxrh
-                if self.relative_freq else maxh)
-                if self.show_prob:
-                    prob = dist / dsum
-                    ci = 1.96 * np.sqrt(prob * (1 - prob) / dsum)
-                else:
-                    ci = None
-                item = DistributionBarItem(geom, dist / scvar / maxrh
-                if self.relative_freq
-                else dist / maxh, colors)
+                geom = QRectF(
+                    i - 0.333, 0, 0.666, maxrh
+                    if self.relative_freq else maxh)
+                item = DistributionBarItem(
+                    geom, dist / scvar / maxrh
+                    if self.relative_freq
+                    else dist / maxh, colors)
                 self.box_scene.addItem(item)
                 tooltip = "\n".join(
                     "%s: %.*f" % (n, 3 if self.relative_freq else 1, v)
-                    for n, v in zip(cvar_values,
-                                    dist / scvar if self.relative_freq else dist))
-                item.tooltip = (
-                                   "Normalized frequency " if self.relative_freq else "Frequency ") \
-                               + "(" + cvar.name + "=" + value + "):" \
-                               + "\n" + tooltip
+                    for n, v in zip(
+                        cvar_values,
+                        dist / scvar if self.relative_freq else dist))
+                if self.relative_freq:
+                    frequency = "Normalized frequency"
+                else:
+                    frequency = "Frequency"
+                item.tooltip = \
+                    "{frequency}({name}={value}):\n{tooltip}".format(
+                        frequency=frequency,
+                        name=cvar.name,
+                        value=value,
+                        tooltip=tooltip,
+                    )
                 self.tooltip_items.append((self.box_scene, item))
 
                 if self.show_prob:
                     item.tooltip += "\n\nProbabilities:"
                     for ic, a in enumerate(dist):
-                        if self.show_prob - 1 != ic and \
-                                                self.show_prob - 1 != len(
-                                    dist):
+                        if (self.show_prob - 1 != ic
+                            and self.show_prob - 1 != len(dist)) \
+                                or dsum < 1e-6:
                             continue
                         position = -0.333 + ((ic + 0.5) * 0.666 / len(dist))
-                        if dsum < 1e-6:
-                            continue
                         prob = a / dsum
                         if not 1e-6 < prob < 1 - 1e-6:
                             continue
@@ -666,15 +665,6 @@ class DistributionTest(OWWidget):
     def get_widget_name_extension(self):
         if self.column_idx >= 0:
             return self.varmodel[self.column_idx]
-
-    def send_report(self):
-        if self.column_idx < 0:
-            return
-        self.report_plot()
-        text = "Distribution of '{}'".format(
-            self.varmodel[self.column_idx])
-        if self.groupvar_idx:
-            group_var = self.groupvarmodel[self.groupvar_idx]
 
     @property
     def test(self) -> Test:
@@ -787,7 +777,7 @@ def average_shifted_histogram(a, h, m=3, weights=None):
                 2 * m * wfac - 1)
 
     bins = np.linspace(amin - offset, amax + offset, nbins + 1,
-                          endpoint=True)
+                       endpoint=True)
     hist, edges = np.histogram(a, bins, weights=weights, density=True)
 
     kernel = gaussian_kernel(
